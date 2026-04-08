@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de estoque Filial 1200 - DASHBOARD ACOMPANHAMENTO AUDIT</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(252.73deg, rgba(255, 255, 255, 0.95) 0.42%, rgba(229, 229, 229, 0.95) 100%), linear-gradient(180deg, rgba(74, 64, 254, 0.15) 0%, rgba(254, 65, 64, 0.15) 100%);
+            --brand-gradient: linear-gradient(180deg, #4A40FE 0%, #FE4140 100%);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-main: #6E6E6E;
+            --text-dark: #333333;
+            --shadow: 8px 4px 15px rgba(0, 0, 0, 0.1);
+            --radius: 30px;
+        }
+        
+        body { margin: 0; padding: 30px; font-family: 'Poppins', sans-serif; background: var(--bg-gradient); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        .overlay-loader {
+            display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.85); z-index: 9999; backdrop-filter: blur(5px);
+            align-items: center; justify-content: center; flex-direction: column;
+        }
+        .loader-box {
+            background: white; padding: 30px 50px; border-radius: 20px; box-shadow: var(--shadow);
+            color: #FE4140; font-weight: 700; font-size: 20px; display: flex; align-items: center; gap: 15px; flex-direction: column;
+        }
+        .spinner { width: 40px; height: 40px; border: 5px solid #f3f3f3; border-top: 5px solid #FE4140; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #loader-text { margin-top: 10px; font-size: 16px; color: #666;}
+
+        .top-nav { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 15px 40px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 30px; backdrop-filter: blur(10px); }
+        .logo-area { display: flex; align-items: center; gap: 20px; }
+        .logo-text { font-weight: bold; font-size: 24px; color: #0032C5; letter-spacing: 0.5px; }
+        .title { font-size: 20px; border-left: 2px solid #ccc; padding-left: 20px; color: var(--text-main); font-weight: 500; }
+        
+        .view-toggles { display: flex; gap: 15px; }
+        .btn-toggle { padding: 12px 25px; border: none; border-radius: 15px; font-size: 15px; font-family: 'Poppins', sans-serif; font-weight: 600; cursor: pointer; transition: 0.3s; background: #E5E5E5; color: #666; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+        .btn-toggle.active { background: var(--brand-gradient); color: white; }
+
+        .main-layout { display: grid; grid-template-columns: 320px 1fr; gap: 30px; }
+
+        .sidebar { background: var(--card-bg); border-radius: var(--radius); padding: 30px; box-shadow: var(--shadow); backdrop-filter: blur(10px); height: fit-content; }
+        .sidebar h3 { margin-top: 0; color: var(--text-dark); border-bottom: 1px solid #ddd; padding-bottom: 10px; font-weight: 600; font-size: 16px;}
+        .filter-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;}
+        .filter-group { margin-bottom: 15px; }
+        .filter-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text-dark); }
+        .filter-group select, .filter-group input { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid #ccc; box-sizing: border-box; font-family: inherit; font-size: 12px; background: white; color: var(--text-dark); outline: none; }
+
+        .content { display: flex; flex-direction: column; gap: 30px; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+        .kpi-card { background: var(--card-bg); border-radius: var(--radius); padding: 30px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+        .kpi-ribbon { position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: var(--brand-gradient); }
+        .kpi-header { display: flex; align-items: center; gap: 12px; margin-left: 10px; margin-bottom: 5px; }
+        .kpi-icon { color: #FE4140; display: flex; align-items: center; justify-content: center; }
+        .kpi-title { font-size: 15px; text-transform: uppercase; font-weight: 700; color: var(--text-dark); letter-spacing: 0.5px;}
+        .kpi-value { font-size: 48px; font-weight: 700; color: var(--text-dark); margin-left: 10px; line-height: 1.1; }
+        .kpi-sub { font-size: 14px; margin-left: 10px; color: #999; margin-top: 5px; font-weight: 400; }
+
+        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .full-width { grid-column: 1 / -1; }
+        .data-card { background: var(--card-bg); border-radius: var(--radius); padding: 30px; box-shadow: var(--shadow); }
+        .data-card h3 { margin-top: 0; margin-bottom: 20px; color: var(--text-dark); font-weight: 600; font-size: 18px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 14px 0; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; font-weight: 500;}
+        th { font-weight: 600; color: #999; text-transform: uppercase; font-size: 12px;}
+        .col-bar { width: 40%; padding-right: 15px;}
+        .col-num { text-align: right; padding-right: 15px; font-weight: 600;}
+        .progress-bg { width: 100%; height: 8px; background: #E5E5E5; border-radius: 10px; }
+        .progress-fill { height: 100%; background: var(--brand-gradient); border-radius: 10px; transition: width 0.5s ease-in-out;}
+
+        .footer-signature { margin-top: 10px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; font-weight: 500; color: #888; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+
+    <div id="processing-loader" class="overlay-loader">
+        <div class="loader-box">
+            <div class="spinner"></div>
+            Conectando ao Supabase...
+            <div id="loader-text">Baixando dados operacionais (Isso pode levar alguns segundos)</div>
+        </div>
+    </div>
+
+    <div class="top-nav">
+        <div class="logo-area">
+            <div class="logo-text">CASAS BAHIA</div>
+            <div class="title">Controle de estoque Filial 1200 - DASHBOARD ACOMPANHAMENTO AUDIT</div>
+        </div>
+        <div class="view-toggles">
+            <button id="btn-original" class="btn-toggle active" onclick="switchView('ORIGINAL')">Base Original (Tempo Real)</button>
+            <button id="btn-historico" class="btn-toggle" onclick="switchView('HISTORICO')">Base Histórico (Acumulado)</button>
+        </div>
+    </div>
+
+    <div id="app-body" class="main-layout" style="visibility: hidden;">
+        <div class="sidebar">
+            <h3>Filtros de Tempo</h3>
+            <div class="filter-grid-2">
+                <div class="filter-group"><label>Data Início</label><input type="date" id="f-data-ini" onchange="triggerFilters()"></div>
+                <div class="filter-group"><label>Data Fim</label><input type="date" id="f-data-fim" onchange="triggerFilters()"></div>
+            </div>
+            <div class="filter-grid-2">
+                <div class="filter-group"><label>Mês</label><select id="f-mes" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+                <div class="filter-group"><label>Ano</label><select id="f-ano" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+            </div>
+
+            <h3 style="margin-top: 10px;">Filtros Operacionais</h3>
+            <div class="filter-group"><label>Wave</label><select id="f-wave" onchange="triggerFilters()"><option value="ALL">Todas</option></select></div>
+            <div class="filter-group"><label>Audit Status</label><select id="f-audit" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+            <div class="filter-group"><label>Tipo de Pedido</label><select id="f-tipo" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+            <div class="filter-group"><label>Setor</label><select id="f-setor" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+            <div class="filter-grid-2">
+                <div class="filter-group"><label>Status Pedido</label><select id="f-status_ped" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+                <div class="filter-group"><label>Status oLPN</label><select id="f-lpn" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+            </div>
+            <div class="filter-group"><label>Tarefa Status</label><select id="f-tarefa" onchange="triggerFilters()"><option value="ALL">Todos</option></select></div>
+        </div>
+
+        <div class="content">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-ribbon"></div>
+                    <div class="kpi-header">
+                        <div class="kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg></div>
+                        <div class="kpi-title">Total de Pedidos</div>
+                    </div>
+                    <div class="kpi-value" id="kpi-pedidos">0</div>
+                    <div class="kpi-sub">Volume processado (Filtro Atual)</div>
+                </div>
+                
+                <div class="kpi-card">
+                    <div class="kpi-ribbon"></div>
+                    <div class="kpi-header">
+                        <div class="kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><polyline points="9 14 11 16 15 11"></polyline></svg></div>
+                        <div class="kpi-title">Índice de Auditoria</div>
+                    </div>
+                    <div class="kpi-value" id="kpi-audit-perc">0%</div>
+                    <div class="kpi-sub">Pedidos auditados na seleção</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-ribbon"></div>
+                    <div class="kpi-header">
+                        <div class="kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+                        <div class="kpi-title">Índice de Variance</div>
+                    </div>
+                    <div class="kpi-value" id="kpi-var-perc">0%</div>
+                    <div class="kpi-sub">Divergências na seleção</div>
+                </div>
+            </div>
+
+            <div class="data-grid">
+                <div class="data-card"><h3>Auditoria por Tipo de Pedido</h3><table id="tbl-tipo"></table></div>
+                <div class="data-card"><h3>Auditoria por Setor</h3><table id="tbl-setor"></table></div>
+                <div class="data-card full-width"><h3>Evolução por Wave (Maior Volume)</h3><table id="tbl-wave"></table></div>
+            </div>
+            
+            <div class="footer-signature">
+                Desenvolvido por Silvanderson Macena - Assistente administrativo controle de estoque Filial 1200 | Atualizado em: 08/04/2026 15:54
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vqjhltujbgkytuydjcof.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_rer_prf2qZ9XhvVzoWEX8A_XmUz79Md';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let rawDataArray = [];
+        let currentMode = 'ORIGINAL';
+
+        const colIdx = {
+            wave: 0, pedido: 1, tipo_pedido: 2, setor_item: 3, audit_status: 4, 
+            status_pedido: 5, tarefa_status: 6, status_olpn: 7, data_pedido: 8, fonte_dado: 9
+        };
+
+        window.onload = async function() {
+            try {
+                const { data, error } = await supabase.rpc('get_audit_compressed');
+                
+                if (error) throw error;
+                if (!data) throw new Error("Nenhum dado retornado da nuvem.");
+                
+                rawDataArray = data;
+                
+                document.getElementById('processing-loader').style.display = 'none';
+                document.getElementById('app-body').style.visibility = 'visible';
+                
+                populateFilters();
+                triggerFilters();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader-text').innerText = "❌ Erro ao conectar com o Supabase. Verifique a internet e o console (F12).";
+            }
+        };
+
+        function triggerFilters() {
+            document.getElementById('processing-loader').style.display = 'flex';
+            document.getElementById('loader-text').innerText = "Aplicando Filtros Matemáticos...";
+            setTimeout(applyFilters, 50);
+        }
+
+        function switchView(mode) {
+            currentMode = mode;
+            document.getElementById('btn-original').classList.toggle('active', mode === 'ORIGINAL');
+            document.getElementById('btn-historico').classList.toggle('active', mode === 'HISTORICO');
+            populateFilters();
+            triggerFilters();
+        }
+
+        function getUniqueValues(idx) {
+            let values = new Set();
+            for(let i=0; i<rawDataArray.length; i++) {
+                if(rawDataArray[i][colIdx.fonte_dado] !== currentMode) continue;
+                let val = rawDataArray[i][idx];
+                if(val && val !== 'VAZIO') values.add(val);
+            }
+            return Array.from(values).sort();
+        }
+
+        function getUniqueDateParts(part) {
+            let values = new Set();
+            for(let i=0; i<rawDataArray.length; i++) {
+                if(rawDataArray[i][colIdx.fonte_dado] !== currentMode) continue;
+                let dt = String(rawDataArray[i][colIdx.data_pedido]);
+                if(dt && dt !== 'VAZIO' && dt.length >= 10) {
+                    if(part === 'ano') values.add(dt.substring(0,4));
+                    if(part === 'mes') values.add(dt.substring(5,7));
+                }
+            }
+            return Array.from(values).sort();
+        }
+
+        function populateFilters() {
+            let sMes = document.getElementById('f-mes'); let sAno = document.getElementById('f-ano');
+            let cMes = sMes.value; let cAno = sAno.value;
+            sMes.innerHTML = '<option value="ALL">Todos</option>'; sAno.innerHTML = '<option value="ALL">Todos</option>';
+            getUniqueDateParts('mes').forEach(v => sMes.innerHTML += `<option value="${v}">${v}</option>`);
+            getUniqueDateParts('ano').forEach(v => sAno.innerHTML += `<option value="${v}">${v}</option>`);
+            if(Array.from(sMes.options).some(opt => opt.value === cMes)) sMes.value = cMes;
+            if(Array.from(sAno.options).some(opt => opt.value === cAno)) sAno.value = cAno;
+
+            const mappings = [
+                {id: 'f-wave', idx: colIdx.wave}, {id: 'f-audit', idx: colIdx.audit_status}, 
+                {id: 'f-tipo', idx: colIdx.tipo_pedido}, {id: 'f-setor', idx: colIdx.setor_item}, 
+                {id: 'f-status_ped', idx: colIdx.status_pedido}, {id: 'f-tarefa', idx: colIdx.tarefa_status}, 
+                {id: 'f-lpn', idx: colIdx.status_olpn}
+            ];
+            mappings.forEach(m => {
+                let select = document.getElementById(m.id);
+                let currentVal = select.value;
+                select.innerHTML = '<option value="ALL">Todos</option>';
+                getUniqueValues(m.idx).forEach(val => { select.innerHTML += `<option value="${val}">${val}</option>`; });
+                if(Array.from(select.options).some(opt => opt.value === currentVal)) select.value = currentVal;
+            });
+        }
+
+        function applyFilters() {
+            let fDataIni = document.getElementById('f-data-ini').value; let fDataFim = document.getElementById('f-data-fim').value;
+            let fMes = document.getElementById('f-mes').value; let fAno = document.getElementById('f-ano').value;
+            let fWave = document.getElementById('f-wave').value; let fAudit = document.getElementById('f-audit').value;
+            let fTipo = document.getElementById('f-tipo').value; let fSetor = document.getElementById('f-setor').value;
+            let fStatusPed = document.getElementById('f-status_ped').value; let fTarefa = document.getElementById('f-tarefa').value;
+            let fLpn = document.getElementById('f-lpn').value;
+
+            let ObjectPedidos = {};
+
+            for(let i = 0; i < rawDataArray.length; i++) {
+                let row = rawDataArray[i];
+                if(row[colIdx.fonte_dado] !== currentMode) continue;
+
+                let dtCompleta = String(row[colIdx.data_pedido]);
+                if (dtCompleta !== 'VAZIO' && dtCompleta.length >= 10) {
+                    let dateOnly = dtCompleta.substring(0, 10);
+                    let rowAno = dtCompleta.substring(0, 4);
+                    let rowMes = dtCompleta.substring(5, 7);
+                    if(fAno !== 'ALL' && rowAno !== fAno) continue;
+                    if(fMes !== 'ALL' && rowMes !== fMes) continue;
+                    if(fDataIni && dateOnly < fDataIni) continue;
+                    if(fDataFim && dateOnly > fDataFim) continue;
+                }
+
+                if(fWave !== 'ALL' && row[colIdx.wave] !== fWave) continue;
+                if(fAudit !== 'ALL' && row[colIdx.audit_status] !== fAudit) continue;
+                if(fTipo !== 'ALL' && row[colIdx.tipo_pedido] !== fTipo) continue;
+                if(fSetor !== 'ALL' && row[colIdx.setor_item] !== fSetor) continue;
+                if(fStatusPed !== 'ALL' && row[colIdx.status_pedido] !== fStatusPed) continue;
+                if(fTarefa !== 'ALL' && row[colIdx.tarefa_status] !== fTarefa) continue;
+                if(fLpn !== 'ALL' && row[colIdx.status_olpn] !== fLpn) continue;
+
+                let pedId = row[colIdx.pedido];
+                if(!ObjectPedidos[pedId]) {
+                    ObjectPedidos[pedId] = { audited: false, variance: false, tipo: row[colIdx.tipo_pedido], wave: row[colIdx.wave], setores: new Set() };
+                }
+                
+                ObjectPedidos[pedId].setores.add(row[colIdx.setor_item]);
+                let status = (row[colIdx.audit_status] || '').toUpperCase();
+                if(status === 'AUDIT_COMPLETE' || status === 'AUDIT_COMPLETE_WITH_VARIANCE') ObjectPedidos[pedId].audited = true;
+                if(status === 'AUDIT_COMPLETE_WITH_VARIANCE') ObjectPedidos[pedId].variance = true;
+            }
+
+            let orderArr = Object.values(ObjectPedidos);
+            let total = orderArr.length;
+            let audited = 0; let variance = 0;
+            
+            for(let i=0; i<total; i++){
+                if(orderArr[i].audited) audited++;
+                if(orderArr[i].variance) variance++;
+            }
+
+            document.getElementById('kpi-pedidos').innerText = total.toLocaleString('pt-BR');
+            document.getElementById('kpi-audit-perc').innerText = total > 0 ? ((audited/total)*100).toFixed(1) + '%' : '0%';
+            document.getElementById('kpi-var-perc').innerText = audited > 0 ? ((variance/audited)*100).toFixed(1) + '%' : '0%';
+
+            buildTable('tbl-tipo', orderArr, 'tipo', 10);
+            buildTable('tbl-wave', orderArr, 'wave', 15);
+            
+            let setoresMap = {};
+            for(let i=0; i<total; i++){
+                let o = orderArr[i];
+                o.setores.forEach(s => {
+                    if(!setoresMap[s]) setoresMap[s] = { total: 0, audited: 0 };
+                    setoresMap[s].total++;
+                    if(o.audited) setoresMap[s].audited++;
+                });
+            }
+            
+            let setoresArr = Object.keys(setoresMap).map(k => ({ key: k, total: setoresMap[k].total, audited: setoresMap[k].audited }));
+            setoresArr.sort((a,b) => b.total - a.total);
+            renderHTMLTable('tbl-setor', setoresArr.slice(0, 10));
+
+            document.getElementById('processing-loader').style.display = 'none';
+        }
+
+        function buildTable(elementId, orderArr, groupKey, limit) {
+            let map = {};
+            for(let i=0; i<orderArr.length; i++){
+                let o = orderArr[i];
+                let k = o[groupKey];
+                if(!map[k]) map[k] = { total: 0, audited: 0 };
+                map[k].total++;
+                if(o.audited) map[k].audited++;
+            }
+            
+            let arr = Object.keys(map).map(k => ({ key: k, total: map[k].total, audited: map[k].audited, perc: (map[k].audited/map[k].total)*100 }));
+            arr.sort((a,b) => (b.total - a.total) || (b.perc - a.perc));
+            renderHTMLTable(elementId, arr.slice(0, limit));
+        }
+
+        function renderHTMLTable(elementId, arr) {
+            let html = `<tr><th>Descrição</th><th style="text-align:right;">Auditados / Total</th><th>Progresso</th><th style="text-align:right;">%</th></tr>`;
+            arr.forEach(item => {
+                let p = item.total > 0 ? ((item.audited / item.total) * 100).toFixed(1) : 0;
+                html += `<tr>
+                    <td><b>${item.key}</b></td>
+                    <td class="col-num">${item.audited.toLocaleString('pt-BR')} / ${item.total.toLocaleString('pt-BR')}</td>
+                    <td class="col-bar"><div class="progress-bg"><div class="progress-fill" style="width: ${p}%;"></div></div></td>
+                    <td class="col-perc">${p}%</td>
+                </tr>`;
+            });
+            document.getElementById(elementId).innerHTML = html;
+        }
+    </script>
+</body>
+</html>
